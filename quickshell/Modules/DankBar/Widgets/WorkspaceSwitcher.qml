@@ -2165,6 +2165,106 @@ Item {
                 }
             }
         }
+
+        Item {
+            id: specialWorkspaceDelegate
+            
+            property string activeSpecialWorkspaceName: ""
+
+            Connections {
+                target: CompositorService.isHyprland ? Hyprland : null
+                function onRawEvent(event) {
+                    // event is an object with {name, ...}
+                    if (event.name === "activespecial") {
+                        const eventData = event.arguments || event.data || event.args || "";
+                        const parts = (eventData || "").split(",");
+                        const wsName = parts.length > 0 ? parts[0] : "";
+                        const monName = parts.length > 1 ? parts[1] : "";
+                        
+                        // We only care if it's on this monitor, or if it's a global hide (sometimes monName isn't 100% reliable on hide)
+                        if (monName === root.screenName || monName === "") {
+                            specialWorkspaceDelegate.activeSpecialWorkspaceName = wsName;
+                        } else if (wsName === "") {
+                            // If it's a hide event for another monitor, we don't care, but if it's a global hide
+                            specialWorkspaceDelegate.activeSpecialWorkspaceName = "";
+                        }
+                    }
+                }
+            }
+            
+            readonly property bool isActiveInfo: activeSpecialWorkspaceName !== ""
+            
+            width: isActiveInfo ? (root.isVertical ? root.widgetHeight : visualContentSp.width) : 0
+            height: isActiveInfo ? (root.isVertical ? visualContentSp.height : root.widgetHeight) : 0
+            visible: isActiveInfo
+            
+            Behavior on width { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
+            Behavior on height { NumberAnimation { duration: Theme.mediumDuration; easing.type: Theme.emphasizedEasing } }
+
+            Rectangle {
+                id: visualContentSp
+                width: root.isVertical ? (Math.max(root.widgetHeight * 0.7, root.appIconSize * 1.2)) : (Math.max(root.widgetHeight * 1.05, spContentRow.implicitWidth + 16))
+                height: root.isVertical ? (Math.max(root.widgetHeight * 1.05, spContentCol.implicitHeight + 16)) : (Math.max(root.widgetHeight * 0.7, root.appIconSize * 1.2))
+                x: root.isVertical ? (root.widgetHeight - width) / 2 : 0
+                y: root.isVertical ? 0 : (root.widgetHeight - height) / 2
+                radius: Theme.cornerRadius
+                
+                color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.8)
+                
+                Row {
+                    id: spContentRow
+                    anchors.centerIn: parent
+                    spacing: 4
+                    visible: !root.isVertical
+                    DankIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText) * 1.1
+                        name: "auto_awesome"
+                        color: "white"
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: specialWorkspaceDelegate.activeSpecialWorkspaceName.replace("special:", "")
+                        color: "white"
+                        font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
+                        font.weight: Font.DemiBold
+                        visible: text !== ""
+                    }
+                }
+
+                Column {
+                    id: spContentCol
+                    anchors.centerIn: parent
+                    spacing: 2
+                    visible: root.isVertical
+                    DankIcon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        size: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText) * 1.1
+                        name: "auto_awesome"
+                        color: "white"
+                    }
+                    StyledText {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: specialWorkspaceDelegate.activeSpecialWorkspaceName.replace("special:", "").charAt(0)
+                        color: "white"
+                        font.pixelSize: Theme.barTextSize(root.barThickness, root.barConfig?.fontScale, root.barConfig?.maximizeWidgetText)
+                        font.weight: Font.DemiBold
+                        visible: text !== ""
+                    }
+                }
+                
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (specialWorkspaceDelegate.activeSpecialWorkspaceName) {
+                             const name = specialWorkspaceDelegate.activeSpecialWorkspaceName.replace("special:", "");
+                             Hyprland.dispatch(`togglespecialworkspace ${name}`);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Component.onCompleted: {
