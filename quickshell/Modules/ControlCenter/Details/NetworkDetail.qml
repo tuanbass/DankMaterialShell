@@ -27,9 +27,11 @@ Rectangle {
         if (NetworkService.wifiToggling)
             return headerRow.height + hotspotContentHeight + wifiToggleContent.height + Theme.spacingM;
         if (NetworkService.wifiEnabled)
-            return headerRow.height + hotspotContentHeight + wifiContent.height + Theme.spacingM;
+            return headerRow.height + hotspotContentHeight + filterField.height + wifiContent.height + Theme.spacingM * 2;
         return headerRow.height + hotspotContentHeight + wifiOffContent.height + Theme.spacingM;
     }
+
+    property string wifiFilterText: ""
     radius: Theme.cornerRadius
     color: Theme.nestedSurface
     border.color: Theme.outlineMedium
@@ -497,6 +499,23 @@ Rectangle {
                 }
             }
         }
+    }
+
+    DankTextField {
+        id: filterField
+        anchors.top: hotspotRow.visible ? hotspotRow.bottom : headerRow.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: Theme.spacingM
+        anchors.rightMargin: Theme.spacingM
+        anchors.topMargin: Theme.spacingM
+        height: Math.round(Theme.fontSizeMedium * 2.5)
+        visible: currentConnectionType === "wifi" && NetworkService.wifiEnabled && !NetworkService.wifiToggling
+        placeholderText: I18n.tr("Filter networks...")
+        leftIconName: "search"
+        showClearButton: true
+        text: root.wifiFilterText
+        onTextEdited: root.wifiFilterText = text
     }
 
     ScriptModel {
@@ -1042,7 +1061,7 @@ Rectangle {
 
     Item {
         id: wifiScanningOverlay
-        anchors.top: hotspotRow.visible ? hotspotRow.bottom : headerRow.bottom
+        anchors.top: filterField.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -1069,7 +1088,7 @@ Rectangle {
 
     DankListView {
         id: wifiContent
-        anchors.top: hotspotRow.visible ? hotspotRow.bottom : headerRow.bottom
+        anchors.top: filterField.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -1084,10 +1103,13 @@ Rectangle {
         property bool menuOpen: false
         property var sortedNetworks: {
             const ssid = NetworkService.currentWifiSSID;
-            const networks = NetworkService.wifiNetworks;
+            const networks = NetworkService.wifiNetworks || [];
             const pinnedList = root.getPinnedNetworks();
+            const filter = (root.wifiFilterText || "").toLowerCase();
 
-            let sorted = [...networks];
+            const filtered = filter.length > 0 ? networks.filter(n => (n.ssid || "").toLowerCase().indexOf(filter) !== -1) : networks;
+
+            let sorted = [...filtered];
             sorted.sort((a, b) => {
                 const aPinnedIndex = pinnedList.indexOf(a.ssid);
                 const bPinnedIndex = pinnedList.indexOf(b.ssid);
